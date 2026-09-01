@@ -1,1 +1,0 @@
-zsh: no such file or directory: /Users/claudiojacomassi/Documents/GitHub/Suicidio_adolescentes_Brasil/.venv/bin/python
