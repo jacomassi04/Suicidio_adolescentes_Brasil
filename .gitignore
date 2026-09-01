@@ -179,3 +179,20 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Local data files
+*.csv
+*.parquet
+*.dbc
+*.dbf
+*.zip
+
+# Project data directories
+01_RAW/
+02_PROCESSED/
+03_FINAL/
+
+# Local reports and temporary files
+*_report.txt
+*_audit.csv
+*_audit.txt
