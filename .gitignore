@@ -196,3 +196,4 @@ cython_debug/
 *_report.txt
 *_audit.csv
 *_audit.txt
+Scripts/script_provisorio.py
