@@ -87,7 +87,7 @@ RAW_DIR = Path(
     "/Users/claudiojacomassi/Library/CloudStorage/"
     "GoogleDrive-claudio.jacomassi@gmail.com/"
     ".shortcut-targets-by-id/"
-    "1KAgdHCMybmn_N4ImZ9y8Jk_T_YdxXUDLk/"
+    "1KAgdHCMybmn_N4ImZ9y8JkT_YdxXUDLk/"
     "PUC SP/Suicidio_adolescentes_Brasil/"
     "01_RAW/SIM"
 )
@@ -110,7 +110,7 @@ OUTPUT_DIR = Path(
     "/Users/claudiojacomassi/Library/CloudStorage/"
     "GoogleDrive-claudio.jacomassi@gmail.com/"
     ".shortcut-targets-by-id/"
-    "1KAgdHCMybmn_N4ImZ9y8Jk_T_YdxXUDLk/"
+    "1KAgdHCMybmn_N4ImZ9y8JkT_YdxXUDLk/"
     "PUC SP/Suicidio_adolescentes_Brasil/"
     "02_PROCESSED/SIM"
 )
@@ -211,6 +211,7 @@ print(f"Dicionário: {DICTIONARY_FILE}")
 # convertidos automaticamente para números.
 dictionary = pd.read_csv(
     DICTIONARY_FILE,
+    sep=";",
     encoding=ENCODING_DICTIONARY,
     dtype=str,
 )
