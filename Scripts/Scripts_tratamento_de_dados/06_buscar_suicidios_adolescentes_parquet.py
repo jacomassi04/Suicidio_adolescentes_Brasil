@@ -218,6 +218,13 @@ def localizar_parquets():
         PROCESSED_DIR.glob("Mortalidade_Geral_*.parquet")
     )
 
+    # Mantém somente os anos do período definido no projeto.
+    arquivos = [
+        arquivo
+        for arquivo in arquivos
+        if obter_ano_do_nome(arquivo) is not None
+    ]
+
     if not arquivos:
         raise FileNotFoundError(
             "\nNenhum arquivo Parquet de mortalidade foi encontrado em:\n"
@@ -451,7 +458,102 @@ def ler_parquet(caminho):
 
 
 # =============================================================================
-# 12. PROCESSAR UM ARQUIVO
+# 12. RESUMIR MUNICÍPIOS DO SIM
+# =============================================================================
+# Esta função recebe o arquivo completo, antes dos filtros de suicídio,
+# e contabiliza os municípios de residência presentes no SIM.
+#
+# O objetivo é responder a uma pergunta diferente da contagem de suicídios:
+#
+#   "Quantos municípios estão representados na base do SIM?"
+#
+# Depois, comparamos esse universo com os municípios que tiveram pelo menos
+# um suicídio adolescente.
+#
+# Não usamos aqui o número teórico de municípios do Brasil. O universo é
+# observado diretamente nos arquivos do SIM e exige CODMUNRES válido.
+# =============================================================================
+
+def atualizar_resumo_municipios(df, ano, resumo):
+    """Atualiza o resumo de municípios presentes no SIM."""
+
+    if "CODMUNRES" not in df.columns:
+        return
+
+    municipios = (
+        df["CODMUNRES"]
+        .astype("string")
+        .str.strip()
+        .replace("", pd.NA)
+        .dropna()
+    )
+
+    if municipios.empty:
+        return
+
+    conjunto_ano = set(municipios.unique())
+
+    if ano not in resumo["por_ano"]:
+        resumo["por_ano"][ano] = {
+            "municipios_sim": set(),
+            "municipios_com_suicidio": set(),
+        }
+
+    resumo["por_ano"][ano]["municipios_sim"].update(conjunto_ano)
+
+
+def atualizar_municipios_com_suicidio(df, ano, resumo):
+    """Registra os municípios que tiveram suicídio adolescente."""
+
+    if df.empty or "CODMUNRES" not in df.columns:
+        return
+
+    municipios = (
+        df["CODMUNRES"]
+        .astype("string")
+        .str.strip()
+        .replace("", pd.NA)
+        .dropna()
+    )
+
+    if municipios.empty:
+        return
+
+    if ano not in resumo["por_ano"]:
+        resumo["por_ano"][ano] = {
+            "municipios_sim": set(),
+            "municipios_com_suicidio": set(),
+        }
+
+    resumo["por_ano"][ano]["municipios_com_suicidio"].update(
+        municipios.unique()
+    )
+
+
+def finalizar_resumo_municipios(resumo):
+    """Converte os conjuntos internos em contagens finais."""
+
+    todos = set()
+    com_suicidio = set()
+
+    for ano, dados in resumo["por_ano"].items():
+        # Mantemos os conjuntos originais para poder calcular também
+        # o total distinto de municípios em todo o período.
+        municipios_sim = dados["municipios_sim"]
+        municipios_com_suicidio = dados["municipios_com_suicidio"]
+
+        dados["total_municipios"] = len(municipios_sim)
+        dados["municipios_com_suicidio"] = len(municipios_com_suicidio)
+
+        todos.update(municipios_sim)
+        com_suicidio.update(municipios_com_suicidio)
+
+    resumo["total_municipios_periodo"] = len(todos)
+    resumo["municipios_com_suicidio_periodo"] = len(com_suicidio)
+
+
+# =============================================================================
+# 13. PROCESSAR UM ARQUIVO
 # =============================================================================
 # Aqui acontece o núcleo da seleção:
 #
@@ -465,12 +567,22 @@ def ler_parquet(caminho):
 # O resultado contém somente os óbitos que atendem aos critérios.
 # =============================================================================
 
-def processar_arquivo(caminho):
+def processar_arquivo(caminho, resumo_municipios=None):
     """Processa um arquivo Parquet e retorna somente suicídios 10-19."""
 
     ano_arquivo = obter_ano_do_nome(caminho)
 
     df = ler_parquet(caminho)
+
+    # Conta os municípios antes de aplicar os filtros de suicídio.
+    # Assim, o denominador "municípios no SIM" não fica restrito aos
+    # municípios que tiveram suicídio adolescente.
+    if resumo_municipios is not None and ano_arquivo is not None:
+        atualizar_resumo_municipios(
+            df,
+            ano_arquivo,
+            resumo_municipios,
+        )
 
     # -------------------------------------------------------------------------
     # ETAPA A - selecionar causa básica X60-X84
@@ -531,11 +643,18 @@ def processar_arquivo(caminho):
 
     print(f"  Registros selecionados: {len(df):,}")
 
+    if resumo_municipios is not None and ano_arquivo is not None:
+        atualizar_municipios_com_suicidio(
+            df,
+            ano_arquivo,
+            resumo_municipios,
+        )
+
     return df
 
 
 # =============================================================================
-# 13. PADRONIZAR AS COLUNAS
+# 14. PADRONIZAR AS COLUNAS
 # =============================================================================
 # Arquivos de anos diferentes podem não possuir exatamente as mesmas colunas.
 #
@@ -562,7 +681,7 @@ def padronizar_colunas(df):
 
 
 # =============================================================================
-# 14. GERAR RESUMO DA BASE
+# 15. GERAR RESUMO DA BASE
 # =============================================================================
 # Depois de juntar todos os anos, mostramos algumas estatísticas simples.
 #
@@ -570,8 +689,22 @@ def padronizar_colunas(df):
 # Não é ainda a análise estatística final.
 # =============================================================================
 
-def mostrar_resumo(df):
-    """Mostra estatísticas básicas da base selecionada."""
+def mostrar_resumo(df, resumo_municipios=None):
+    """Mostra estatísticas básicas da base selecionada.
+
+    Também apresenta:
+    - municípios distintos presentes no SIM;
+    - municípios distintos com pelo menos um suicídio adolescente;
+    - municípios distintos sem suicídio adolescente;
+    - os mesmos indicadores por ano.
+
+    IMPORTANTE:
+    "Total de municípios" aqui significa municípios distintos com
+    CODMUNRES válido encontrados nos arquivos do SIM. Não representa
+    ainda o universo oficial de todos os municípios brasileiros e
+    também não aplica o corte populacional > 50.000 habitantes.
+    Esse filtro será feito posteriormente, usando a base populacional.
+    """
 
     print("\n")
     print("=" * 72)
@@ -607,8 +740,45 @@ def mostrar_resumo(df):
         print("\nÓbitos por SEXO:")
         print(df["SEXO"].value_counts(dropna=False).to_string())
 
-    print("\nMunicípios distintos:")
-    if "CODMUNRES" in df.columns:
+    print("\nMunicípios:")
+    if resumo_municipios:
+        total_periodo = resumo_municipios["total_municipios_periodo"]
+        com_suicidio_periodo = resumo_municipios["municipios_com_suicidio_periodo"]
+        sem_suicidio_periodo = total_periodo - com_suicidio_periodo
+
+        print(
+            "  Total de municípios distintos com CODMUNRES válido no SIM: "
+            f"{total_periodo:,}"
+        )
+        print(
+            "  Municípios com pelo menos 1 suicídio adolescente: "
+            f"{com_suicidio_periodo:,}"
+        )
+        print(
+            "  Municípios sem suicídio adolescente no período: "
+            f"{sem_suicidio_periodo:,}"
+        )
+
+        print("\nMunicípios por ano:")
+        print(
+            "  ANO    Municípios no SIM    Com suicídio    Sem suicídio"
+        )
+        print(
+            "  " + "-" * 56
+        )
+
+        for ano in sorted(resumo_municipios["por_ano"]):
+            dados = resumo_municipios["por_ano"][ano]
+            total = dados["total_municipios"]
+            com_suicidio = dados["municipios_com_suicidio"]
+            sem_suicidio = total - com_suicidio
+
+            print(
+                f"  {ano}    {total:>12,}"
+                f"    {com_suicidio:>12,}"
+                f"    {sem_suicidio:>12,}"
+            )
+    elif "CODMUNRES" in df.columns:
         municipios = (
             df["CODMUNRES"]
             .astype("string")
@@ -618,11 +788,11 @@ def mostrar_resumo(df):
             .nunique()
         )
 
-        print(f"  {municipios:,}")
+        print(f"  Municípios com suicídio adolescente: {municipios:,}")
 
 
 # =============================================================================
-# 15. SALVAR O RESULTADO FINAL
+# 16. SALVAR O RESULTADO FINAL
 # =============================================================================
 # O arquivo é salvo em 03_FINAL/SIM.
 #
@@ -660,7 +830,7 @@ def salvar_resultado(df):
 
 
 # =============================================================================
-# 16. FUNÇÃO PRINCIPAL
+# 17. FUNÇÃO PRINCIPAL
 # =============================================================================
 # main() organiza a sequência completa:
 #
@@ -697,6 +867,13 @@ def main():
 
     resultados = []
 
+    # Controle do universo de municípios.
+    resumo_municipios = {
+        "por_ano": {},
+        "total_municipios_periodo": 0,
+        "municipios_com_suicidio_periodo": 0,
+    }
+
     # -------------------------------------------------------------------------
     # Processamento de cada ano.
     # -------------------------------------------------------------------------
@@ -708,7 +885,10 @@ def main():
         print("-" * 72)
 
         try:
-            resultado = processar_arquivo(arquivo)
+            resultado = processar_arquivo(
+                arquivo,
+                resumo_municipios=resumo_municipios,
+            )
 
             if not resultado.empty:
                 resultado = padronizar_colunas(resultado)
@@ -760,10 +940,19 @@ def main():
     print(f"Total consolidado: {len(df_final):,}")
 
     # -------------------------------------------------------------------------
+    # Finalizar resumo de municípios.
+    # -------------------------------------------------------------------------
+
+    finalizar_resumo_municipios(resumo_municipios)
+
+    # -------------------------------------------------------------------------
     # Resumo de controle de qualidade.
     # -------------------------------------------------------------------------
 
-    mostrar_resumo(df_final)
+    mostrar_resumo(
+        df_final,
+        resumo_municipios=resumo_municipios,
+    )
 
     # -------------------------------------------------------------------------
     # Salvar arquivo final.
@@ -778,7 +967,7 @@ def main():
 
 
 # =============================================================================
-# 17. EXECUÇÃO DO SCRIPT
+# 18. EXECUÇÃO DO SCRIPT
 # =============================================================================
 # Esta condição garante que main() seja executada quando o arquivo for
 # chamado diretamente pelo Python:
