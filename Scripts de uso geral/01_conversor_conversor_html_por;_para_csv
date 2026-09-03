@@ -1,0 +1,488 @@
+"""
+======================================================================
+CONVERSOR TABNET HTML → CSV
+======================================================================
+
+Converte arquivos HTML exportados pelo DATASUS/TabNet para CSV.
+
+O TabNet frequentemente grava os dados dentro de uma tag <PRE>,
+em vez de utilizar uma tabela HTML (<TABLE>).
+
+Características:
+- Abre o Finder do macOS para selecionar um ou vários arquivos HTML
+- Extrai automaticamente o conteúdo da tag <PRE>
+- Usa ';' como separador
+- Preserva acentos e caracteres especiais
+- Salva o CSV na mesma pasta do HTML original
+- Não altera o arquivo HTML original
+- Pergunta antes de sobrescrever um CSV existente
+- Mostra um resumo da conversão
+
+======================================================================
+"""
+
+from pathlib import Path
+import csv
+import re
+import tkinter as tk
+from tkinter import filedialog
+
+
+# =====================================================================
+# CONFIGURAÇÕES
+# =====================================================================
+
+ENCODINGS_TENTATIVA = [
+    "iso-8859-1",
+    "latin1",
+    "utf-8",
+]
+
+
+# =====================================================================
+# ESCOLHER ARQUIVOS PELO FINDER
+# =====================================================================
+
+def selecionar_arquivos():
+    """
+    Abre o Finder e permite selecionar um ou vários arquivos HTML.
+    """
+
+    root = tk.Tk()
+    root.withdraw()
+
+    arquivos = filedialog.askopenfilenames(
+        title="Selecione um ou mais arquivos HTML do TabNet",
+        filetypes=[
+            ("Arquivos HTML", "*.html *.htm"),
+            ("Todos os arquivos", "*.*"),
+        ],
+    )
+
+    root.destroy()
+
+    return [Path(arquivo) for arquivo in arquivos]
+
+
+# =====================================================================
+# LER ARQUIVO HTML
+# =====================================================================
+
+def ler_html(caminho):
+    """
+    Lê o HTML tentando diferentes codificações.
+
+    Os arquivos do TabNet/DATASUS normalmente usam ISO-8859-1.
+    """
+
+    ultimo_erro = None
+
+    for encoding in ENCODINGS_TENTATIVA:
+
+        try:
+            with open(
+                caminho,
+                "r",
+                encoding=encoding,
+                errors="strict",
+            ) as arquivo:
+
+                conteudo = arquivo.read()
+
+            print(f"  Codificação utilizada: {encoding}")
+
+            return conteudo
+
+        except UnicodeDecodeError as erro:
+            ultimo_erro = erro
+
+    raise RuntimeError(
+        f"Não foi possível determinar a codificação de {caminho.name}."
+    ) from ultimo_erro
+
+
+# =====================================================================
+# EXTRAIR CONTEÚDO DO <PRE>
+# =====================================================================
+
+def extrair_pre(conteudo_html):
+    """
+    Localiza o conteúdo da primeira tag <PRE>.
+
+    O TabNet coloca a tabela de dados dentro dessa tag.
+    """
+
+    resultado = re.search(
+        r"<pre\b[^>]*>(.*?)</pre>",
+        conteudo_html,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+
+    if resultado is None:
+
+        raise RuntimeError(
+            "Não foi encontrada uma tag <PRE> contendo os dados."
+        )
+
+    conteudo_pre = resultado.group(1)
+
+    return conteudo_pre
+
+
+# =====================================================================
+# LIMPAR CONTEÚDO
+# =====================================================================
+
+def limpar_pre(conteudo_pre):
+    """
+    Faz pequenas correções no conteúdo extraído do <PRE>.
+
+    O objetivo é preservar os dados do TabNet sem alterar
+    desnecessariamente seu conteúdo.
+    """
+
+    # Remove espaços no início/fim do conteúdo
+    conteudo_pre = conteudo_pre.strip()
+
+    return conteudo_pre
+
+
+# =====================================================================
+# CONVERTER PARA CSV
+# =====================================================================
+
+def converter_html_para_csv(caminho_html):
+    """
+    Converte um arquivo HTML do TabNet para CSV.
+    """
+
+    print()
+    print("=" * 70)
+    print(f"Arquivo: {caminho_html.name}")
+    print("=" * 70)
+
+    # ---------------------------------------------------------------
+    # 1. Ler HTML
+    # ---------------------------------------------------------------
+
+    print("\nLendo arquivo HTML...")
+
+    html = ler_html(caminho_html)
+
+    print(f"  Tamanho: {len(html):,} caracteres")
+
+    # ---------------------------------------------------------------
+    # 2. Extrair PRE
+    # ---------------------------------------------------------------
+
+    print("\nLocalizando dados dentro de <PRE>...")
+
+    dados_pre = extrair_pre(html)
+
+    dados_pre = limpar_pre(dados_pre)
+
+    print(f"  Dados extraídos: {len(dados_pre):,} caracteres")
+
+    # ---------------------------------------------------------------
+    # 3. Separar linhas
+    # ---------------------------------------------------------------
+
+    linhas = dados_pre.splitlines()
+
+    # Remover linhas completamente vazias
+    linhas = [
+        linha
+        for linha in linhas
+        if linha.strip()
+    ]
+
+    if not linhas:
+
+        raise RuntimeError(
+            "A tag <PRE> foi encontrada, mas não contém dados."
+        )
+
+    print(f"  Linhas encontradas: {len(linhas):,}")
+
+    # ---------------------------------------------------------------
+    # 4. Verificar separador
+    # ---------------------------------------------------------------
+
+    primeira_linha = linhas[0]
+
+    if ";" in primeira_linha:
+
+        separador = ";"
+
+    elif "," in primeira_linha:
+
+        separador = ","
+
+    elif "\t" in primeira_linha:
+
+        separador = "\t"
+
+    else:
+
+        raise RuntimeError(
+            "Não foi possível identificar o separador dos dados."
+        )
+
+    print(f"  Separador identificado: {repr(separador)}")
+
+    # ---------------------------------------------------------------
+    # 5. Interpretar CSV
+    # ---------------------------------------------------------------
+
+    registros = []
+
+    leitor = csv.reader(
+        linhas,
+        delimiter=separador,
+        quotechar='"',
+    )
+
+    for linha in leitor:
+
+        registros.append(linha)
+
+    if not registros:
+
+        raise RuntimeError(
+            "Nenhum registro foi encontrado."
+        )
+
+    cabecalho = registros[0]
+
+    dados = registros[1:]
+
+    # ---------------------------------------------------------------
+    # 6. Verificar estrutura
+    # ---------------------------------------------------------------
+
+    numero_colunas = len(cabecalho)
+
+    print(f"  Colunas: {numero_colunas:,}")
+    print(f"  Registros: {len(dados):,}")
+
+    if numero_colunas <= 1:
+
+        raise RuntimeError(
+            "O arquivo possui apenas uma coluna. "
+            "A estrutura do TabNet não foi interpretada corretamente."
+        )
+
+    # ---------------------------------------------------------------
+    # 7. Verificar registros com número errado de colunas
+    # ---------------------------------------------------------------
+
+    registros_invalidos = []
+
+    for numero_linha, registro in enumerate(
+        dados,
+        start=2,
+    ):
+
+        if len(registro) != numero_colunas:
+
+            registros_invalidos.append(
+                (
+                    numero_linha,
+                    len(registro),
+                )
+            )
+
+    if registros_invalidos:
+
+        print()
+        print(
+            "[AVISO] Foram encontrados registros "
+            "com número diferente de colunas."
+        )
+
+        for numero_linha, quantidade in registros_invalidos[:10]:
+
+            print(
+                f"  Linha {numero_linha}: "
+                f"{quantidade} colunas "
+                f"(esperado: {numero_colunas})"
+            )
+
+        if len(registros_invalidos) > 10:
+
+            print(
+                f"  ... e mais "
+                f"{len(registros_invalidos) - 10:,} registros."
+            )
+
+    # ---------------------------------------------------------------
+    # 8. Criar nome do CSV
+    # ---------------------------------------------------------------
+
+    caminho_csv = caminho_html.with_suffix(".csv")
+
+    # ---------------------------------------------------------------
+    # 9. Verificar se CSV já existe
+    # ---------------------------------------------------------------
+
+    if caminho_csv.exists():
+
+        print()
+        print(
+            f"[AVISO] O arquivo já existe:\n"
+            f"  {caminho_csv}"
+        )
+
+        resposta = input(
+            "\nDeseja sobrescrever? [s/N]: "
+        ).strip().lower()
+
+        if resposta not in ("s", "sim", "y", "yes"):
+
+            print("  Conversão cancelada.")
+
+            return False
+
+    # ---------------------------------------------------------------
+    # 10. Gravar CSV
+    # ---------------------------------------------------------------
+
+    print("\nGravando CSV...")
+
+    with open(
+        caminho_csv,
+        "w",
+        encoding="utf-8-sig",
+        newline="",
+    ) as arquivo_csv:
+
+        escritor = csv.writer(
+            arquivo_csv,
+            delimiter=";",
+            quotechar='"',
+            quoting=csv.QUOTE_MINIMAL,
+        )
+
+        # Cabeçalho
+        escritor.writerow(cabecalho)
+
+        # Dados
+        escritor.writerows(dados)
+
+    # ---------------------------------------------------------------
+    # 11. Estatísticas finais
+    # ---------------------------------------------------------------
+
+    tamanho_mb = caminho_csv.stat().st_size / (
+        1024 * 1024
+    )
+
+    print()
+    print("-" * 70)
+    print("CONVERSÃO CONCLUÍDA")
+    print("-" * 70)
+
+    print(f"Arquivo original : {caminho_html.name}")
+    print(f"Arquivo CSV      : {caminho_csv.name}")
+    print(f"Local            : {caminho_csv.parent}")
+    print(f"Colunas          : {numero_colunas:,}")
+    print(f"Registros        : {len(dados):,}")
+    print(f"Tamanho CSV      : {tamanho_mb:,.2f} MB")
+
+    return True
+
+
+# =====================================================================
+# PROGRAMA PRINCIPAL
+# =====================================================================
+
+def main():
+
+    print()
+    print("=" * 70)
+    print("CONVERSOR TABNET HTML → CSV")
+    print("=" * 70)
+
+    print()
+    print(
+        "Selecione um ou mais arquivos HTML no Finder."
+    )
+
+    print(
+        "Os CSVs serão gravados na mesma pasta dos HTMLs."
+    )
+
+    # ---------------------------------------------------------------
+    # Selecionar arquivos
+    # ---------------------------------------------------------------
+
+    arquivos = selecionar_arquivos()
+
+    if not arquivos:
+
+        print()
+        print("Nenhum arquivo foi selecionado.")
+        print("Programa encerrado.")
+
+        return
+
+    print()
+    print(
+        f"{len(arquivos)} arquivo(s) selecionado(s)."
+    )
+
+    # ---------------------------------------------------------------
+    # Processar
+    # ---------------------------------------------------------------
+
+    sucesso = 0
+    erros = 0
+
+    for caminho_html in arquivos:
+
+        try:
+
+            resultado = converter_html_para_csv(
+                caminho_html
+            )
+
+            if resultado:
+
+                sucesso += 1
+
+        except Exception as erro:
+
+            erros += 1
+
+            print()
+            print(
+                f"[ERRO] Não foi possível converter "
+                f"{caminho_html.name}"
+            )
+
+            print(f"  {erro}")
+
+    # ---------------------------------------------------------------
+    # Resumo
+    # ---------------------------------------------------------------
+
+    print()
+    print("=" * 70)
+    print("RESUMO FINAL")
+    print("=" * 70)
+
+    print(f"Arquivos selecionados : {len(arquivos)}")
+    print(f"Conversões concluídas : {sucesso}")
+    print(f"Erros                 : {erros}")
+
+    print()
+    print("Programa encerrado.")
+
+
+# =====================================================================
+# EXECUÇÃO
+# =====================================================================
+
+if __name__ == "__main__":
+
+    main()

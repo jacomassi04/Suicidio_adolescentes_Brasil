@@ -1,0 +1,407 @@
+"""
+================================================================================
+CONVERSOR CSV -> PARQUET
+Projeto: Suicídio em adolescentes no Brasil
+Curso: Inteligência Artificial - PUC-SP
+
+OBJETIVO
+--------
+Selecionar um ou vários arquivos CSV usando o Finder do macOS e convertê-los
+para Parquet.
+
+O arquivo Parquet será criado NA MESMA PASTA do CSV original, mantendo o
+mesmo nome-base:
+
+    exemplo.csv
+        ->
+    exemplo.parquet
+
+O CSV original NÃO é alterado.
+
+CARACTERÍSTICAS
+----------------
+- Seleção de um ou vários arquivos pelo Finder.
+- CSV separado por ponto e vírgula (;), como os arquivos SIM do projeto.
+- Encoding UTF-8-SIG ou Latin-1.
+- Nomes originais das colunas preservados.
+- Todos os dados são inicialmente lidos como texto para evitar alterações
+  indesejadas de códigos oficiais (ex.: CODMUNRES, IDADE, CAUSABAS).
+- Parquet com compressão Snappy.
+- Confirmação antes de substituir um Parquet existente.
+- Relatório de linhas e colunas processadas.
+- Validação básica do arquivo criado.
+
+REQUISITOS
+----------
+No ambiente virtual do projeto:
+
+    pip install pandas pyarrow
+"""
+
+# ==============================================================================
+# BLOCO 1 — IMPORTAÇÃO DAS BIBLIOTECAS
+# ==============================================================================
+
+from pathlib import Path
+import tkinter as tk
+from tkinter import filedialog
+
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+
+# ==============================================================================
+# BLOCO 2 — CONFIGURAÇÕES
+# ==============================================================================
+
+SEPARADOR = ";"
+
+# Tentaremos primeiro UTF-8 com BOM e depois Latin-1.
+ENCODINGS = [
+    "utf-8-sig",
+    "latin1",
+]
+
+COMPRESSION = "snappy"
+
+
+# ==============================================================================
+# BLOCO 3 — SELEÇÃO DOS ARQUIVOS PELO FINDER
+# ==============================================================================
+
+print("=" * 70)
+print("CONVERSOR CSV → PARQUET")
+print("=" * 70)
+
+print("\nSelecione um ou vários arquivos CSV no Finder.")
+
+root = tk.Tk()
+root.withdraw()
+root.attributes("-topmost", True)
+
+csv_files = filedialog.askopenfilenames(
+    title="Selecione um ou vários arquivos CSV",
+    filetypes=[
+        ("Arquivos CSV", "*.csv"),
+        ("Todos os arquivos", "*.*"),
+    ],
+)
+
+root.destroy()
+
+
+# ==============================================================================
+# BLOCO 4 — CANCELAMENTO
+# ==============================================================================
+
+if not csv_files:
+    print("\nNenhum arquivo foi selecionado.")
+    raise SystemExit(0)
+
+
+print(f"\nArquivos selecionados: {len(csv_files)}")
+
+
+# ==============================================================================
+# BLOCO 5 — FUNÇÃO PARA LER O CSV
+# ==============================================================================
+
+def ler_csv(caminho_csv):
+    """
+    Tenta ler o CSV utilizando os encodings definidos acima.
+
+    dtype=str é utilizado deliberadamente para preservar os valores originais
+    das variáveis do SIM, evitando que códigos sejam convertidos
+    automaticamente para números.
+    """
+
+    ultimo_erro = None
+
+    for encoding in ENCODINGS:
+
+        try:
+
+            df = pd.read_csv(
+                caminho_csv,
+                sep=SEPARADOR,
+                encoding=encoding,
+                dtype=str,
+                low_memory=False,
+            )
+
+            return df, encoding
+
+        except UnicodeDecodeError as erro:
+
+            ultimo_erro = erro
+
+    raise RuntimeError(
+        "Não foi possível ler o arquivo com os encodings "
+        f"{ENCODINGS}. Último erro: {ultimo_erro}"
+    )
+
+
+# ==============================================================================
+# BLOCO 6 — PROCESSAMENTO DE UM ARQUIVO
+# ==============================================================================
+
+def converter_csv_para_parquet(caminho_csv):
+
+    caminho_csv = Path(caminho_csv)
+
+    # O Parquet ficará na mesma pasta e terá o mesmo nome-base.
+    caminho_parquet = caminho_csv.with_suffix(".parquet")
+
+    print("\n" + "=" * 70)
+    print(f"Arquivo: {caminho_csv.name}")
+    print("=" * 70)
+
+    print(f"Pasta de origem: {caminho_csv.parent}")
+    print(f"Saída Parquet:   {caminho_parquet.name}")
+
+    # --------------------------------------------------------------------------
+    # Verificar se o Parquet já existe
+    # --------------------------------------------------------------------------
+
+    if caminho_parquet.exists():
+
+        resposta = input(
+            "\nO arquivo Parquet já existe. "
+            "Deseja substituí-lo? [s/N]: "
+        ).strip().lower()
+
+        if resposta not in ("s", "sim", "y", "yes"):
+
+            print("Conversão cancelada para este arquivo.")
+            return False
+
+    # --------------------------------------------------------------------------
+    # Ler CSV
+    # --------------------------------------------------------------------------
+
+    print("\nLendo CSV...")
+
+    try:
+
+        df, encoding_usado = ler_csv(caminho_csv)
+
+    except Exception as erro:
+
+        print("\n[ERRO] Não foi possível ler o CSV.")
+        print(erro)
+
+        return False
+
+    # --------------------------------------------------------------------------
+    # Validação básica
+    # --------------------------------------------------------------------------
+
+    if len(df.columns) == 0:
+
+        print("\n[ERRO] O CSV não possui colunas.")
+
+        return False
+
+    if len(df.columns) == 1:
+
+        print(
+            "\n[AVISO] O arquivo possui apenas uma coluna."
+        )
+        print(
+            "Verifique se o separador correto é ';'."
+        )
+
+        resposta = input(
+            "Deseja continuar mesmo assim? [s/N]: "
+        ).strip().lower()
+
+        if resposta not in ("s", "sim", "y", "yes"):
+
+            print("Conversão cancelada.")
+
+            return False
+
+    # --------------------------------------------------------------------------
+    # Mostrar informações do CSV
+    # --------------------------------------------------------------------------
+
+    print(f"\nEncoding utilizado: {encoding_usado}")
+    print(f"Linhas:              {len(df):,}".replace(",", "."))
+    print(f"Colunas:             {len(df.columns)}")
+
+    print("\nPrimeiras colunas:")
+
+    for coluna in df.columns[:10]:
+        print(f"  - {coluna}")
+
+    if len(df.columns) > 10:
+        print(f"  ... e mais {len(df.columns) - 10} coluna(s)")
+
+    # --------------------------------------------------------------------------
+    # Converter DataFrame para Arrow
+    # --------------------------------------------------------------------------
+
+    print("\nConvertendo DataFrame → Parquet...")
+
+    try:
+
+        table = pa.Table.from_pandas(
+            df,
+            preserve_index=False,
+        )
+
+    except Exception as erro:
+
+        print("\n[ERRO] Falha ao converter para Arrow/Parquet.")
+        print(erro)
+
+        return False
+
+    # --------------------------------------------------------------------------
+    # Metadados
+    # --------------------------------------------------------------------------
+
+    metadata = dict(table.schema.metadata or {})
+
+    metadata[b"arquivo_origem"] = caminho_csv.name.encode("utf-8")
+
+    metadata[b"formato_origem"] = b"CSV"
+
+    metadata[b"separador_origem"] = SEPARADOR.encode("utf-8")
+
+    metadata[b"encoding_origem"] = encoding_usado.encode("utf-8")
+
+    metadata[b"descricao"] = (
+        "Arquivo convertido de CSV para Parquet. "
+        "Nomes originais das colunas preservados."
+    ).encode("utf-8")
+
+    table = table.replace_schema_metadata(metadata)
+
+    # --------------------------------------------------------------------------
+    # Gravar Parquet
+    # --------------------------------------------------------------------------
+
+    try:
+
+        pq.write_table(
+            table,
+            caminho_parquet,
+            compression=COMPRESSION,
+        )
+
+    except Exception as erro:
+
+        print("\n[ERRO] Falha ao gravar o Parquet.")
+        print(erro)
+
+        return False
+
+    # --------------------------------------------------------------------------
+    # Validar o Parquet criado
+    # --------------------------------------------------------------------------
+
+    print("\nValidando Parquet criado...")
+
+    try:
+
+        parquet = pq.ParquetFile(caminho_parquet)
+
+        linhas_parquet = parquet.metadata.num_rows
+        colunas_parquet = len(parquet.schema_arrow.names)
+
+        if linhas_parquet != len(df):
+
+            print(
+                "\n[AVISO] Número de linhas diferente:"
+            )
+            print(f"  CSV:     {len(df):,}".replace(",", "."))
+            print(f"  Parquet: {linhas_parquet:,}".replace(",", "."))
+
+        if colunas_parquet != len(df.columns):
+
+            print(
+                "\n[AVISO] Número de colunas diferente:"
+            )
+            print(f"  CSV:     {len(df.columns)}")
+            print(f"  Parquet: {colunas_parquet}")
+
+        else:
+
+            print("Número de linhas e colunas validado.")
+
+    except Exception as erro:
+
+        print("\n[AVISO] Não foi possível validar o Parquet.")
+        print(erro)
+
+    # --------------------------------------------------------------------------
+    # Resultado
+    # --------------------------------------------------------------------------
+
+    tamanho_mb = caminho_parquet.stat().st_size / (1024 * 1024)
+
+    print("\n" + "-" * 70)
+    print("CONVERSÃO CONCLUÍDA")
+    print("-" * 70)
+
+    print(f"CSV original : {caminho_csv}")
+    print(f"Parquet      : {caminho_parquet}")
+    print(f"Linhas       : {len(df):,}".replace(",", "."))
+    print(f"Colunas      : {len(df.columns)}")
+    print(f"Tamanho      : {tamanho_mb:.2f} MB")
+    print(f"Compressão   : {COMPRESSION}")
+
+    return True
+
+
+# ==============================================================================
+# BLOCO 7 — PROCESSAR TODOS OS ARQUIVOS
+# ==============================================================================
+
+sucesso = 0
+cancelados = 0
+erros = 0
+
+for numero, csv_file in enumerate(csv_files, start=1):
+
+    print(
+        f"\n\nPROCESSANDO ARQUIVO "
+        f"{numero}/{len(csv_files)}"
+    )
+
+    try:
+
+        resultado = converter_csv_para_parquet(csv_file)
+
+        if resultado:
+            sucesso += 1
+        else:
+            cancelados += 1
+
+    except Exception as erro:
+
+        erros += 1
+
+        print("\n[ERRO] Falha inesperada:")
+        print(erro)
+
+
+# ==============================================================================
+# BLOCO 8 — RESUMO FINAL
+# ==============================================================================
+
+print("\n\n" + "=" * 70)
+print("RESUMO FINAL")
+print("=" * 70)
+
+print(f"Arquivos selecionados : {len(csv_files)}")
+print(f"Conversões concluídas : {sucesso}")
+print(f"Cancelados            : {cancelados}")
+print(f"Com erro              : {erros}")
+
+print("\nOs arquivos CSV originais NÃO foram alterados.")
+
+print("\nFim do programa.")
+print("=" * 70)
