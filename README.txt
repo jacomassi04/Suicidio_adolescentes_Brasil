@@ -7,5 +7,6 @@ TabNet - http://tabnet.datasus.gov.br/cgi/tabcgi.exe?sim/cnv/obt10uf.def
 Pense - ???
 
 Possiveis fontes de informacao:
+No site do IBGE acima ha varias outras pstas de informacao a serem exploradas, 
 https://www.ibge.gov.br/estatisticas/downloads-estatisticas.html
 https://www.atlasbrasil.org.br/consulta
