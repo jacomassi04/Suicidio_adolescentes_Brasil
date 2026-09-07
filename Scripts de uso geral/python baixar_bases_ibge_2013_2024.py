@@ -11,7 +11,7 @@ Baixa somente as BASES DE DADOS relevantes para o período 2013-2024:
    agregados municipais de domicílios/serviços e características urbanísticas
 
 NÃO baixa:
-- PDFs
+- PDFs...
 - Tabelas de resultados
 - notas técnicas
 - duplicatas ODS quando XLS/XLSX existe
