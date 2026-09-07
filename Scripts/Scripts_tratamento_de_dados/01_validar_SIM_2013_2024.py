@@ -7,7 +7,7 @@ Objetivo:
       2. número de colunas;
       3. especificamente, 87 colunas em 2022;
       4. especificamente, 354.056 registros em 2022;
-      5. nomes das colunas.
+      5. nomes das colunas....
 
 IMPORTANTE:
     Este programa é somente de LEITURA.
