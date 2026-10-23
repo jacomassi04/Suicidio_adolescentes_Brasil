@@ -1,0 +1,135 @@
+# ESCOPO DO PROJETO — PeNSE 2024
+
+## 1. Identificação
+
+**Projeto:** Análise estatística e modelagem de características relacionadas à saúde e ao comportamento de adolescentes brasileiros.
+
+**Fonte:** Pesquisa Nacional de Saúde do Escolar (PeNSE 2024), IBGE.
+
+**População de interesse:** estudantes de 13 a 17 anos, conforme os filtros aplicados à base analítica.
+
+**Abordagens:** estatística descritiva, análise de associação, aprendizado não supervisionado e regressão logística supervisionada.
+
+## 2. Problema de pesquisa
+
+Como as respostas selecionadas dos microdados da PeNSE 2024 se distribuem entre adolescentes de 13 a 17 anos, quais associações podem ser identificadas entre as variáveis categóricas e quais padrões de agrupamento e relações estatísticas podem ser investigados?
+
+A definição de uma pergunta específica sobre comportamento suicida, fatores associados ou outro desfecho dependerá da confirmação das variáveis efetivamente selecionadas para as análises.
+
+## 3. Objetivo geral
+
+Construir uma base analítica documentada e aplicar métodos estatísticos e computacionais para descrever os dados, investigar associações, identificar agrupamentos de estudantes e avaliar relações com um desfecho definido para a regressão logística.
+
+## 4. Escopo dos dados
+
+O projeto contempla os microdados da PeNSE 2024 e as bases intermediárias geradas durante o processamento.
+
+A estrutura observada inclui arquivos CSV, Parquet e Feather, além de planilhas de diagnóstico, dicionários e relatórios.
+
+A seleção definitiva das variáveis deverá ser fundamentada no dicionário oficial e nos objetivos da pesquisa. A quantidade de registros, as variáveis utilizadas e a dimensão final da base deverão ser confirmadas a partir dos arquivos efetivamente processados.
+
+## 5. Etapas do projeto
+
+### Etapa 1 — Tratamento e preparação dos dados
+
+- Examinar os dicionários e as respostas especiais.
+- Definir as colunas de interesse.
+- Excluir colunas sem utilidade analítica justificada.
+- Recodificar categorias e rótulos.
+- Identificar e tratar valores ausentes.
+- Avaliar registros duplicados.
+- Padronizar as representações das variáveis.
+- Gerar bases intermediárias documentadas.
+- Produzir diagnósticos e relatórios de recodificação.
+
+**Resultado esperado:** base analítica consistente, rastreável e adequada aos métodos selecionados.
+
+### Etapa 2 — Análise estatística exploratória
+
+- Calcular frequências absolutas e relativas.
+- Examinar a distribuição das categorias.
+- Produzir mapas de calor.
+- Aplicar o teste qui-quadrado de independência.
+- Calcular o V de Cramér para avaliar a intensidade de associações.
+- Documentar os resultados, os pressupostos e as limitações.
+
+**Resultado esperado:** descrição das variáveis e identificação de associações estatísticas relevantes para investigação posterior.
+
+### Etapa 3 — Agrupamento não supervisionado por K-Modes
+
+- Avaliar o custo para diferentes valores de K.
+- Investigar configurações e hiperparâmetros.
+- Comparar soluções candidatas.
+- Avaliar tamanho, estabilidade e interpretabilidade dos grupos.
+- Descrever os agrupamentos por meio das distribuições de categorias.
+
+**Resultado esperado:** uma ou mais soluções de agrupamento avaliadas e uma justificativa documentada para a escolha final.
+
+### Etapa 4 — Regressão logística supervisionada
+
+- Definir a variável dependente e as categorias de referência.
+- Selecionar as variáveis explicativas com justificativa analítica.
+- Definir o tratamento de valores ausentes e categorias raras.
+- Ajustar o modelo e avaliar sua adequação.
+- Examinar coeficientes, odds ratios e intervalos de confiança, quando apropriados.
+- Avaliar discriminação, calibração e desempenho em dados não utilizados no ajuste, conforme o objetivo do modelo.
+- Investigar sobreajuste, dependência entre observações e limitações do desenho amostral.
+
+**Resultado esperado:** modelo documentado, com interpretação dos parâmetros e avaliação compatível com o desfecho e a finalidade definidos.
+
+A variável-alvo e as métricas finais permanecem pendentes de confirmação a partir do notebook.
+
+## 6. Critérios de qualidade
+
+O projeto deverá verificar:
+
+- Consistência entre códigos originais e categorias recodificadas.
+- Rastreabilidade das exclusões de registros e variáveis.
+- Impacto do tratamento de valores ausentes.
+- Justificativa para a remoção de duplicados.
+- Adequação dos métodos aos tipos de variáveis.
+- Reprodutibilidade dos resultados.
+- Estabilidade e interpretabilidade dos agrupamentos.
+- Validade da avaliação da regressão logística.
+
+## 7. Desenho amostral
+
+A PeNSE possui características de amostragem que podem ser relevantes para estimativas populacionais e inferência estatística.
+
+O projeto deverá identificar como os pesos amostrais, estratos e unidades primárias de amostragem são tratados em cada análise.
+
+Resultados obtidos por métodos convencionais, sem consideração adequada do desenho amostral, não deverão ser automaticamente interpretados como estimativas representativas de toda a população-alvo.
+
+## 8. Limites da interpretação
+
+- Associações estatísticas não demonstram causalidade.
+- Agrupamentos algorítmicos são dependentes das variáveis, categorias e parâmetros utilizados.
+- A regressão logística não demonstra causalidade por si só.
+- Resultados não deverão ser generalizados sem avaliar o desenho amostral e as limitações dos dados.
+- As conclusões deverão refletir os dados efetivamente analisados, e não apenas os objetivos inicialmente previstos.
+
+## 9. Fora do escopo inicial
+
+- Estabelecer causalidade com base exclusivamente em análises observacionais.
+- Produzir diagnósticos clínicos individuais.
+- Afirmar que os clusters representam tipos naturais e definitivos de adolescentes.
+- Generalizar resultados sem avaliar a representatividade e o desenho amostral.
+- Publicar dados ou arquivos derivados sem verificar as condições de redistribuição.
+- Afirmar desempenho preditivo sem validação adequada.
+
+## 10. Entregas
+
+- Bases analíticas e documentação das transformações.
+- Relatórios de recodificação e qualidade dos dados.
+- Análises de frequências e mapas de calor.
+- Resultados de qui-quadrado e V de Cramér.
+- Diagnósticos e avaliação de soluções K-Modes.
+- Modelo de regressão logística documentado.
+- Tabelas, gráficos e relatórios interpretativos.
+- Instruções para reprodução do fluxo de análise.
+
+## 11. Critérios de conclusão
+
+O projeto estará documentado quando as etapas de preparação, análise estatística, agrupamento e regressão logística possuírem critérios explícitos, resultados verificáveis, limitações registradas e instruções de reprodução.
+
+A conclusão científica dependerá da avaliação dos resultados efetivamente obtidos e da adequação metodológica de cada etapa.
