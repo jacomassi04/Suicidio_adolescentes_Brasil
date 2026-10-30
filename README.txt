@@ -122,3 +122,68 @@ A licença do código deverá ser definida separadamente das condições aplicá
 ## 9. Status do projeto
 
 Projeto em desenvolvimento. A documentação de resultados, parâmetros, métricas e conclusões será ampliada conforme a validação dos notebooks e das análises.
+
+Sequencia de atividades projeto integrador
+
+S1 — Definição do Projeto e Planejamento
+Formação das equipes (1–4 alunos). ✓
+Definição do escopo e objetivos. ✓
+Criação do repositório GitHub. ✓
+Configuração do ambiente (Python, libs). ✓
+Entregável: Repositório criado  ✓ + documento de escopo ✖︎ + README. ✖︎
+
+S2 — Coleta e Ingestão de Dados
+Download/scraping dos dados DATASUS (PENSE). ✓
+Armazenamento organizado no repo. ✓
+Entregável: Notebook de ingestão + dados brutos no repositório. ✓
+
+S3 — Limpeza, Transformação e Spatial Join
+Tratamento de valores ausentes e inconsistências. ✓
+Padronização de nomes de distritos. ✓
+Execução do Spatial Join (DP ↔ Distrito Administrativo). ???
+Entregável: Notebook ETL + DataFrame integrado (CSV/Parquet). ???
+
+S4 — Análise Exploratória de Dados (EDA)
+Estatísticas descritivas. ✓
+Distribuições e correlações. ✓
+Visualizações temporais e espaciais. ✖︎
+Mapas de calor preliminares. ✓
+Entregável: Notebook EDA + relatório de insights + visualizações. ✖︎ ???
+
+S5 — Modelagem — Clusterização e Detecção de Anomalias
+Aplicação de K-Modes, Random Forest, Regressão Logistica e K-Means (pos MCA). ✓
+Redução de dimensionalidade (MCA somente para o K-Means). ✓
+Entregável: Notebook de clusterização + visualização dos clusters. ✖︎
+
+S6 — Modelagem — Classificação Supervisionada
+Feature engineering final. ??? ✖︎
+Treino de Random Forest e Regress Logística ✓
+Cross-validation e otimização de hiperparâmetros. ✖︎
+Detecção de anomalias. ✖︎
+Entregável: Notebook de classificação + métricas comparativas. ✖︎
+
+
+
+
+
+S7 — Integração, Visualização Final e Documentação
+Consolidação dos resultados.
+Geração do mapa de risco final.
+Documentação completa do código.
+Organização do GitHub.
+Entregável: Dashboard/mapas finais + repo documentado.
+S8 — Apresentação Final do Projeto
+Apresentação oral do projeto para a banca de professores.
+Demonstração ao vivo dos modelos e resultados.
+Discussão e feedback.
+Entregável: Slides + apresentação + repositório final no GitHub.
+
+Tratamento de dados:
+
+01- Entender os dados - Dimensões, colunas, tipos ✓
+02 - Limpar os dados - Duplicatas, ausências e códigos inválidos ✓
+03 - Classificar as variáveis - Nominais, ordinais, binárias e quantitativas ✓
+04 - Selecionar as variáveis - Remover IDs e atributos inadequados ✓
+05 - Transformar os dados - Codificação, conversão de tipos e normalização ✖︎
+06 - Tratar valores ausentes - Excluir ou imputar conforme o significado ✓
+07 - Validar a base - Verificar consistência e qualidade ✖︎
