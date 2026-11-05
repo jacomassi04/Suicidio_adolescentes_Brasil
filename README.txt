@@ -6,7 +6,7 @@ Esses arquivos devem ser carregados na pasta "02_Tratamento_dados_database_PENSE
 
 No final de todos os scripts da pasta acima, tres arquivos sao gerados (nesta mesma pasta):
     07_PENSE2024_IDADE_13_A_17_CATEGORY.Feather
-    07_PENSE2024_IDADE_13_A_17_V_CRAMER_MAIORES_CORRELACOES (e um arquivo feather - necessita mudar nos scripts)
+    07_PENSE2024_IDADE_13_A_17_V_CRAMER_MAIORES_CORRELACOES (e um arquivo feather que ficou sem a terminação)
     08_PENSE2024_MCA_COORDENADAS.Feather
 
 Estes 3 arquivos vao alimentar os scripts nas pastas seguintes:
